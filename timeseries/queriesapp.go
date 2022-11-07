@@ -234,11 +234,11 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		// until influxdb fixes #7185 we calculate COUNTER/DERIVE manually
 		if dstype == "COUNTER" || dstype == "DERIVE" {
 			start_time = fmt.Sprintf("%ds - %s", qsParams.startEpoch, slot_time)
-			//end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
-			end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
+			end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
+			//end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
 		} else { //case "GAUGE":
 			start_time = fmt.Sprintf("%ds", qsParams.startEpoch)
-			end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
+			end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
 		}
 		column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
 
@@ -320,7 +320,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			var prev_ts int64
 			var skip_value bool
 
-			is_counter_or_derive := dstype == "COUNTER" || dstype == "DERIVE"
+			//is_counter_or_derive := dstype == "COUNTER" || dstype == "DERIVE"
 			is_counter := dstype == "COUNTER"
 			is_counter_mode_ps := qsParams.counterMetricsMode == "per_second"
 
@@ -328,7 +328,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 				ts, _ := row[0].(json.Number).Int64()
 				skip_value = false
 
-				if is_counter_or_derive && ts > qsParams.endEpoch {
+				if ts > qsParams.endEpoch {
 					break
 				}
 
