@@ -231,15 +231,8 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		var start_time, end_time string
 		slot_time := CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch, float64(qsParams.minTimeSlot), float64(qsParams.fixedTimeSlot))
 
-		// until influxdb fixes #7185 we calculate COUNTER/DERIVE manually
-		if dstype == "COUNTER" || dstype == "DERIVE" {
-			start_time = fmt.Sprintf("%ds - %s", qsParams.startEpoch, slot_time)
-			end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
-			//end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
-		} else { //case "GAUGE":
-			start_time = fmt.Sprintf("%ds", qsParams.startEpoch)
-			end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
-		}
+        start_time = fmt.Sprintf("%ds - %s", qsParams.startEpoch, slot_time)
+        end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
 		column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
 
 		sql := fmt.Sprintf(
@@ -334,6 +327,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 
 				ts += int64(tz_offset)
 
+		        // until influxdb fixes #7185 we calculate COUNTER/DERIVE manually
 				if is_counter {
 					//fmt.Printf("[ts: %d] %s\n", ts, row[1])
 					if row[1] == nil {
@@ -367,10 +361,12 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 						prev_val = row[1].(json.Number)
 						skip_value = true
 					}
-					if i == 0 {
-						goto SKIP_DATAPOINT
-					}
 				}
+
+                // always skip first datapoint - it is there only to extend the time window
+                if i == 0 {
+                    goto SKIP_DATAPOINT
+                }
 
 				if skip_value {
 					metrics[hsm.HSM].Data = append(metrics[hsm.HSM].Data, [2]interface{}{ts, nil})
