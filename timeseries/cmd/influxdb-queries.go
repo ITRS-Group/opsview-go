@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/ajgb/go-opsview/timeseries"
+	"github.com/ITRS-Group/opsview-go/timeseries"
 )
 
 func main() {
