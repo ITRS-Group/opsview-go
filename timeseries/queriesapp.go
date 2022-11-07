@@ -312,28 +312,34 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			}
 
 			metrics[hsm.HSM] = &QueryResultData{
-				Data:  make([][2]interface{}, rowsCount),
+				Data:  make([][2]interface{}, 0, rowsCount),
 				Stats: stats,
 				Uom:   uomLabel,
 			}
 			var prev_val, prev_calc_val json.Number
             var prev_ts int64
+            var skip_value bool
+
+            is_counter_or_derive := dstype == "COUNTER" || dstype == "DERIVE"
+            is_counter := dstype == "COUNTER"
+            is_counter_mode_ps := qsParams.counterMetricsMode == "per_second"
+
 			for i, row := range results[0].Series[0].Values {
 				ts, _ := row[0].(json.Number).Int64()
+                skip_value = false
 
-		        if ( dstype == "COUNTER" || dstype == "DERIVE" ) && ts > qsParams.endEpoch {
-                    continue
+		        if is_counter_or_derive && ts > qsParams.endEpoch {
+                    break
                 }
 
 				ts += int64(tz_offset)
 
-		        if dstype == "COUNTER" || dstype == "DERIVE" {
-                    metrics[hsm.HSM].Data[i][0] = ts
+		        if is_counter {
                     //fmt.Printf("[ts: %d] %s\n", ts, row[1])
                     if row[1] == nil {
                         prev_val = json.Number("")
                         prev_calc_val = json.Number("")
-                        goto TRACK_PREVIOUS
+                        skip_value = true
                     } else if prev_val != "" {
                         prev, _ := prev_val.Float64()
                         cur, _ := row[1].(json.Number).Float64()
@@ -343,16 +349,15 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 
                         //fmt.Printf(" * prev_val: %s, prev: %f, cur: %f, diff: %f\n", prev_val, prev, cur, diff)
 
-                        if dstype == "COUNTER" && diff < 0 {
+                        if is_counter && diff < 0 {
                             //prev_val, row[1] = row[1].(json.Number), prev_val
                             //fmt.Printf("    = prev_val: %s, row[1]: %s\n", prev_val, row[1])
                             row[1] = prev_calc_val
                         } else {
-                            switch qsParams.counterMetricsMode {
-                            case "difference":
-                                row[1] = json.Number(fmt.Sprintf("%f", diff))
-                            case "per_second":
+                            if is_counter_mode_ps {
                                 row[1] = json.Number(fmt.Sprintf("%f", diff/float64(ts-prev_ts)))
+                            } else {
+                                row[1] = json.Number(fmt.Sprintf("%f", diff))
                             }
 
                             prev_calc_val = row[1].(json.Number)
@@ -360,20 +365,22 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
                         //fmt.Printf("   => row: %s\n", row[1])
                     } else {
 					    prev_val = row[1].(json.Number)
-                        goto TRACK_PREVIOUS
+                        skip_value = true
                     }
-                    if ts < qsParams.startEpoch {
-                        goto TRACK_PREVIOUS
+                    if i == 0 {
+                        goto SKIP_DATAPOINT
                     }
                 }
 
-				metrics[hsm.HSM].Data[i] = [2]interface{}{
-					ts,
-					row[1],
-				}
+                if skip_value {
+                    metrics[hsm.HSM].Data = append(metrics[hsm.HSM].Data, [2]interface{}{ ts, nil })
+                } else {
+                    metrics[hsm.HSM].Data = append(metrics[hsm.HSM].Data, [2]interface{}{ ts, row[1] })
+                }
 
-TRACK_PREVIOUS:
+SKIP_DATAPOINT:
                 prev_ts = ts
+
 			}
 		}
 	}
