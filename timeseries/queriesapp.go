@@ -240,7 +240,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 				"SELECT MIN(value) * %[10]f, MAX(value) * %[10]f, MEAN(value) * %[10]f, STDDEV(value) * %[10]f, PERCENTILE(value, 95) * %[10]f FROM %[2]s.\"%[3]s\" WHERE service = '%[4]s' AND metric = '%[5]s' AND time >= %[6]s AND time <= %[7]s",
 			column,
 			dbRp,
-			hsm.eHost,
+			hsm.Host,
 			hsm.Service,
 			hsm.Metric,
 			start_time,
