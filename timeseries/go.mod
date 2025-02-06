@@ -1,6 +1,6 @@
 module github.com/ITRS-Group/opsview-go/timeseries
 
-go 1.19
+go 1.23
 
 require (
 	github.com/influxdata/influxdb v1.10.0
